@@ -1,6 +1,7 @@
 import threading
 import socket, select
 import json
+import sys
 
 class SocketHandler(threading.Thread):
   def __init__(self, host, send_q, recv_q, debug=False, sentinel=None):
@@ -26,7 +27,10 @@ class SocketHandler(threading.Thread):
         if self.debug: print("Transmitted: " + json.dumps(msg))
         msg_to_send = json.dumps(msg) + "\r\n"
         # Send the message
-        self.sock.sendall(bytes(msg_to_send, 'utf-8'))
+        if sys.version_info.major == 2:
+          self.sock.sendall(bytes(msg_to_send))
+        else:
+          self.sock.sendall(bytes(msg_to_send, 'utf-8'))
         
       # Check to see if we have new data from the socket
       self._recv()

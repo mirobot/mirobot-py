@@ -28,4 +28,14 @@ This is a library to control your Mirobot from the Python programming language. 
     # Disconnect from Mirobot
     mirobot.disconnect()
 
-It currently runs on Python 3
+It currently runs on both Python 2 and Python 3.
+
+## Installing
+
+You can use `pip` to instal the Mirobot library on your system:
+
+    pip install mirobot
+
+You may need to run this as a super user if you get an error, in which case on Mac or Linux, run:
+
+    sudo pip install mirobot
