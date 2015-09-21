@@ -9,5 +9,5 @@ setup(
   url = 'https://github.com/mirobot/mirobot-py',
   download_url = 'https://github.com/mirobot/mirobot-py/tarball/v1.0.1',
   keywords = ['robotics', 'control', 'mirobot'],
-  classifiers = [],
+  classifiers = ['Programming Language :: Python :: 2', 'Programming Language :: Python :: 3', 'Topic :: Education', 'License :: OSI Approved :: MIT License'],
 )
