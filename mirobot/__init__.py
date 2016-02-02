@@ -11,6 +11,7 @@ _sentinel = object()
 
 class Mirobot:
   def __init__(self, address, debug = False):
+    self._debug = debug
     self.__send_q = Queue()
     self.recv_q = Queue()
     self.socket = SocketHandler(address, self.__send_q, self.recv_q, debug=debug, sentinel = _sentinel)
@@ -38,20 +39,24 @@ class Mirobot:
 
   def beep(self, milliseconds):
     self.__send({'cmd':'beep', 'arg':str(milliseconds)}, milliseconds / 500)
-  
+
   def disconnect(self):
     self.__send_q.put(_sentinel)
-  
+
   def __send(self, msg, timeout):
     msg['id'] = self.generate_id()
+    if self._debug:
+      print('<< %r' % msg)
     self.__send_q.put(msg)
-    timeout += time.time()
+    deadline = max(timeout, 1) + time.time()
     while True:
       if self.recv_q.qsize() > 0:
         incoming = self.recv_q.get()
+        if self._debug:
+          print(incoming)
         if incoming['status'] == 'complete' and incoming['id'] == msg['id']:
           return
-      if time.time() >= timeout:
+      if time.time() >= deadline:
         raise IOError("Mirobot timed out")
       time.sleep(0.05)
 
