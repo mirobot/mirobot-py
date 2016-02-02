@@ -44,21 +44,35 @@ class Mirobot:
     self.__send_q.put(_sentinel)
 
   def __send(self, msg, timeout):
-    msg['id'] = self.generate_id()
+    msg_id = msg['id'] = self.generate_id()
     if self._debug:
       print('<< %r' % msg)
     self.__send_q.put(msg)
-    deadline = max(timeout, 1) + time.time()
+    deadline = timeout + time.time()
+    accepted = False
     while True:
-      if self.recv_q.qsize() > 0:
-        incoming = self.recv_q.get()
+      try:
+        timeout = max(1, deadline - time.time())
         if self._debug:
-          print(incoming)
-        if incoming['status'] == 'complete' and incoming['id'] == msg['id']:
-          return
-      if time.time() >= deadline:
-        raise IOError("Mirobot timed out")
-      time.sleep(0.05)
+          print(timeout)
+        incoming = self.recv_q.get(block = True, timeout = timeout)
+      except: # .get raises "Empty"
+        if (accepted):
+          raise IOError("Mirobot timed out awaiting completion of %r" % (msg,))
+        raise IOError("Mirobot timed out awaiting acceptance of %r" % (msg,))
+
+      if self._debug:
+        print(incoming)
+      rx_id = incoming.get('id','???')
+      if rx_id != msg_id:
+        raise IOError("Received message ID (%s) does not match expected (%s)" % (rx_id, msg_id))
+      rx_stat = incoming.get('status','???')
+      if rx_stat == 'accepted':
+        accepted = True
+      elif rx_stat == 'complete':
+        return
+      else:
+        raise IOError("Received message status (%s) unexpected" % (rx_stat,))
 
   def generate_id(self):
     self.n = (self.n + 1) % 0x10000
