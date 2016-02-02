@@ -14,6 +14,8 @@ class Mirobot:
     self.__send_q = Queue()
     self.recv_q = Queue()
     self.socket = SocketHandler(address, self.__send_q, self.recv_q, debug=debug, sentinel = _sentinel)
+    self.nonce  = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(4))
+    self.n      = 0
     self.socket.start()
 
   def forward(self, distance):
@@ -54,4 +56,5 @@ class Mirobot:
       time.sleep(0.05)
 
   def generate_id(self):
-    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(8))
+    self.n = (self.n + 1) % 0x10000
+    return '%s%04x' % (self.nonce, self.n)
