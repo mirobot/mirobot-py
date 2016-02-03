@@ -34,7 +34,7 @@ class SocketHandler(threading.Thread):
           self.sock.sendall(bytes(msg_to_send))
         else:
           self.sock.sendall(bytes(msg_to_send, 'utf-8'))
-
+        self.send_q.task_done()
       # Check to see if we have new data from the socket
       self._recv()
 

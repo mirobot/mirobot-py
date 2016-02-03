@@ -18,33 +18,45 @@ class Mirobot:
     self.nonce  = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(4))
     self.n      = 0
     self.socket.start()
+    self.on_error = None
 
   def forward(self, distance):
-    self.__send({'cmd':'forward', 'arg':str(distance)}, distance/20)
+    return self.__send('forward', distance, distance/20)
 
   def back(self, distance):
-    self.__send({'cmd':'back', 'arg':str(distance)}, distance/20)
+    return self.__send('back',    distance, distance/20)
 
   def left(self, degrees):
-    self.__send({'cmd':'left', 'arg':str(degrees)}, degrees/20)
+    return self.__send('left',    degrees,  degrees/20)
 
   def right(self, degrees):
-    self.__send({'cmd':'right', 'arg':str(degrees)}, degrees/20)
+    return self.__send('right',   degrees,  degrees/20)
 
   def penup(self):
-    self.__send({'cmd':'penup'}, 1)
+    return self.__send('penup')
 
   def pendown(self):
-    self.__send({'cmd':'pendown'}, 1)
+    return self.__send('pendown')
 
   def beep(self, milliseconds):
-    self.__send({'cmd':'beep', 'arg':str(milliseconds)}, milliseconds / 500)
+    return self.__send('beep',    milliseconds, milliseconds / 500)
 
   def disconnect(self):
     self.__send_q.put(_sentinel)
 
-  def __send(self, msg, timeout):
-    msg_id = msg['id'] = self.generate_id()
+  def __send(self, cmd, arg = None, timeout = 1):
+    msg = {'cmd': cmd, 'id': self.generate_id()}
+    if (arg is not None):
+      msg['arg'] = str(arg)
+
+    try:
+      return self.__send_or_raise(msg, timeout)
+    except Exception as x:
+      if not self.on_error:
+        raise
+      return self.on_error(self, msg, timeout, x)
+
+  def __send_or_raise(self, msg, timeout):
     if self._debug:
       print('<< %r' % msg)
     self.__send_q.put(msg)
@@ -63,16 +75,19 @@ class Mirobot:
 
       if self._debug:
         print(incoming)
-      rx_id = incoming.get('id','???')
-      if rx_id != msg_id:
-        raise IOError("Received message ID (%s) does not match expected (%s)" % (rx_id, msg_id))
-      rx_stat = incoming.get('status','???')
-      if rx_stat == 'accepted':
-        accepted = True
-      elif rx_stat == 'complete':
-        return
-      else:
-        raise IOError("Received message status (%s) unexpected" % (rx_stat,))
+      try:
+        rx_id = incoming.get('id','???')
+        if rx_id != msg_id:
+          raise IOError("Received message ID (%s) does not match expected (%s)" % (rx_id, msg_id))
+        rx_stat = incoming.get('status','???')
+        if rx_stat == 'accepted':
+          accepted = True
+        elif rx_stat == 'complete':
+          return None
+        else:
+          raise IOError("Received message status (%s) unexpected" % (rx_stat,))
+      finally:
+        self.recv_q.task_done()
 
   def generate_id(self):
     self.n = (self.n + 1) % 0x10000
