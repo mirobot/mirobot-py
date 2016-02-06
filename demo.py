@@ -18,6 +18,7 @@ else:
   host = 'local.mirobot.io'
 
 mirobot = Mirobot(host, debug=True)
+print(mirobot.state)
 
 mirobot.on_error = on_error
 

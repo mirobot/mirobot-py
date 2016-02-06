@@ -19,6 +19,13 @@ class Mirobot:
     self.n      = 0
     self.socket.start()
     self.on_error = None
+    self.state = {}
+    for k in ('ping','collideState','followState','hwversion',
+              #'uptime', not supported?
+              'version'):
+      self.state[k] = self.__send(k)
+
+    self.__send('collideNotify','true')
 
   def forward(self, distance):
     return self.__send('forward', distance, distance/20)
@@ -52,7 +59,7 @@ class Mirobot:
     try:
       return self.__send_or_raise(msg, timeout)
     except Exception as x:
-      if not self.on_error:
+      if self.on_error is None:
         raise
       return self.on_error(self, msg, timeout, x)
 
@@ -78,17 +85,70 @@ class Mirobot:
       try:
         rx_id = incoming.get('id','???')
         if rx_id != msg_id:
+          # TODO: bump/line notification
+          if (rx_id == 'collide'):
+            self.__collide(incoming)
+            continue
           raise IOError("Received message ID (%s) does not match expected (%s)" % (rx_id, msg_id))
         rx_stat = incoming.get('status','???')
         if rx_stat == 'accepted':
           accepted = True
         elif rx_stat == 'complete':
-          return None
+          return incoming.get('msg',None)
         else:
           raise IOError("Received message status (%s) unexpected" % (rx_stat,))
       finally:
         self.recv_q.task_done()
+  def __collide(self, msg):
+    print('COLLISION')
+    print(msg)
+    print(msg['msg'] in ('left','right','both'))
+    print('')
 
   def generate_id(self):
     self.n = (self.n + 1) % 0x10000
     return '%s%04x' % (self.nonce, self.n)
+
+
+
+
+"""
+        immediate commands
+    safe
+
+ping
+collideState
+followState
+hwversion
+uptime
+version
+
+    interesting
+calibrateMove
+calibrateTurn
+collideNotify          # enable asynchronous collision-detect notification
+followNotify           # enable asynchronous line-follow notification
+moveCalibration
+reset
+sethwversion
+slackCalibration
+turnCalibration
+pause                  #
+resume                 # mess with motors
+stop                   #
+
+
+       slow commands
+back
+beep
+calibrateSlack
+collide                # set collide mode
+follow                 # set line follow mode
+forward
+left
+pendown
+penup
+right
+
+
+"""
