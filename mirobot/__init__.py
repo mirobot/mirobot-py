@@ -18,14 +18,44 @@ class Mirobot:
     self.nonce  = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(4))
     self.n      = 0
     self.socket.start()
-    self.on_error = None
-    self.state = {}
-    for k in ('ping','collideState','followState','hwversion',
+    # callbacks
+    self.__on_error    = None
+    self.__on_collide  = None
+    self.__on_follow   = None
+    #
+    self.version   = self.__send('version')
+    self.hwversion = self.__send('hwversion')
+    ###
+    for k in ('ping','collideState','followState'
               #'uptime', not supported?
-              'version'):
-      self.state[k] = self.__send(k)
+              ):
+      print(self.__send(k))
 
-    self.__send('collideNotify','true')
+    self.collideNotify()
+    self.followNotify(False)
+
+
+
+  def errorNotify(self, on_error):
+    self.__on_error = on_error
+
+  def collideNotify(self, on_collide):
+    enabled = bool(on_collide)
+    self.__on_collide = on_collide
+    self.__send('collideNotify',
+                    ('false','true')[enabled])
+
+  def followNotify(self, on_follow):
+    enabled = bool(on_follow)
+    self.__on_follow = on_follow
+    self.__send('followNotify',
+                    ('false','true')[enabled])
+
+  def ping(self):
+    return self.__send('ping')
+
+  def uptime(self):
+    return self.__send('uptime')
 
   def forward(self, distance):
     return self.__send('forward', distance, distance/20)
@@ -59,9 +89,9 @@ class Mirobot:
     try:
       return self.__send_or_raise(msg, timeout)
     except Exception as x:
-      if self.on_error is None:
+      if not self.__on_error:
         raise
-      return self.on_error(self, msg, timeout, x)
+      return self.__on_error(x, msg, timeout, self)
 
   def __send_or_raise(self, msg, timeout):
     if self._debug:
@@ -85,9 +115,11 @@ class Mirobot:
       try:
         rx_id = incoming.get('id','???')
         if rx_id != msg_id:
-          # TODO: bump/line notification
           if (rx_id == 'collide'):
             self.__collide(incoming)
+            continue
+          if (rx_id == 'follow'):
+            self.__follow(incoming)
             continue
           raise IOError("Received message ID (%s) does not match expected (%s)" % (rx_id, msg_id))
         rx_stat = incoming.get('status','???')
@@ -99,29 +131,26 @@ class Mirobot:
           raise IOError("Received message status (%s) unexpected" % (rx_stat,))
       finally:
         self.recv_q.task_done()
+
   def __collide(self, msg):
-    print('COLLISION')
-    print(msg)
-    print(msg['msg'] in ('left','right','both'))
-    print('')
+    if self.__on_collision:
+      left  = msg['msg'] in ('both','left')
+      right = msg['msg'] in ('both','right')
+      self.__on_collision(left, right, msg, self)
+
+  def __follow(self, msg):
+    if self.__on_follow:
+      state  = int(msg['msg'])
+      self.__on_follow(state, msg, self)
 
   def generate_id(self):
     self.n = (self.n + 1) % 0x10000
     return '%s%04x' % (self.nonce, self.n)
 
-
-
-
 """
         immediate commands
     safe
 
-ping
-collideState
-followState
-hwversion
-uptime
-version
 
     interesting
 calibrateMove

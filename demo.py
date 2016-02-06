@@ -5,12 +5,25 @@ import sys
 
 # this is an optional error handler for the mirobot.
 
-def on_error(bot, msg, timeout, x):
+def on_error(x, msg, timeout, bot):
   print('ERROR:')
-  print(bot)
+  print(x)
   print(msg)
   print(timeout)
-  print(x)
+  print(bot)
+
+def on_collide(left, right, msg, bot):
+  print('COLLISION:')
+  print(left)
+  print(right)
+  print(msg)
+  print(bot)
+
+def on_follow(state, msg, bot):
+  print('FOLLOW:')
+  print(state)
+  print(msg)
+  print(bot)
 
 if len(sys.argv) > 1:
   host = sys.argv[1]
@@ -20,7 +33,9 @@ else:
 mirobot = Mirobot(host, debug=True)
 print(mirobot.state)
 
-mirobot.on_error = on_error
+mirobot.on_error   = on_error
+mirobot.on_collide = on_collide
+mirobot.on_follow  = on_follow
 
 mirobot.forward(100)
 mirobot.back(100)
