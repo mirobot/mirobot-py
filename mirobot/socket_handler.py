@@ -27,7 +27,7 @@ class SocketHandler(threading.Thread):
         # Check if we're being told to shut down
         if msg is self._sentinel:
           return self.sock.close()
-        if self.debug: print("Transmitted: " + json.dumps(msg))
+        if self.debug: print("Tx: " + json.dumps(msg))
         msg_to_send = json.dumps(msg) + "\r\n"
         # Send the message
         if sys.version_info.major == 2:
@@ -45,8 +45,8 @@ class SocketHandler(threading.Thread):
       buff = self.sock.recv(1024).decode('utf-8')
       for line in buff.splitlines():
         try:
+          if self.debug: print("Rx: %s" % line)
           msg = json.loads(line)
-          if self.debug: print("Received: %s" % repr(msg))
           self.recv_q.put(msg)
         except:
           traceback.print_exc()
