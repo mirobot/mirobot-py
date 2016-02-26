@@ -63,8 +63,14 @@ class Mirobot:
   def pendown(self):
     return self.__send('pendown')
 
-  def beep(self, milliseconds):
+  def beep(self, milliseconds = 500):
     return self.__send('beep',    milliseconds, milliseconds / 500)
+
+  def collideState(self):
+    return self.__send('collideState')
+
+  def followState(self):
+    return self.__send('followState')
 
   def disconnect(self):
     self.__send_q.put(_sentinel)
