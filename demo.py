@@ -19,8 +19,22 @@ if len(sys.argv) > 1:
 else:
   host = 'local.mirobot.io'
 
-# connect
-mirobot = Mirobot(host, debug=True)
+# connect to Mirobot - there are a few different ways of doing this
+
+# Use the host we specified on the command line
+#mirobot = Mirobot(host, debug=True)
+
+# Create a Mirobot instance
+mirobot = Mirobot(debug=True)
+# Autoconnect to a Mirobot on our network (there can be only one)
+mirobot.autoConnect()
+
+# Get a menu so we can select which Mirobot to connect to
+#mirobot.autoConnect(interactive=True)
+
+# Specify the id of the Mirobot we want to connect to
+#mirobot.autoConnect(id='Mirobot-abcd')
+
 print("Mirobot version: %s" % mirobot.version)
 
 # set up error handling

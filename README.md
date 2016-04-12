@@ -5,7 +5,8 @@ This is a library to control your Mirobot from the Python programming language. 
     from mirobot import Mirobot
     
     # Connect to Mirobot
-    mirobot = Mirobot('local.mirobot.io')
+    mirobot = Mirobot()
+    mirobot.autoConnect()
 
     # Put the pen down
     mirobot.pendown()
@@ -36,6 +37,32 @@ This is a library to control your Mirobot from the Python programming language. 
 
     # Disconnect from Mirobot
     mirobot.disconnect()
+
+There are a few different ways of connecting to Mirobot:
+
+Specify the IP address or hostname manually:
+
+    mirobot = Mirobot('local.mirobot.io')
+
+If you're running a v2 or greater Mirobot with firmware version at or greater than 2.0.9 you can also use the discovery mechanism to auto connect which saves having to figure out where it is on your network. If you only have one Mirobot on your network, you can just do this:
+
+    mirobot = Mirobot()
+    mirobot.autoConnect()
+
+If you have more than one you can either specify the ID of the Mirobot to connect to that one:
+
+    mirobot = Mirobot()
+    mirobot.autoConnect('Mirobot-abcd')
+
+Or you can use the interactive mode to select which one to connect to:
+
+    mirobot = Mirobot()
+    mirobot.autoConnect(interactive=True)
+    
+    >>> Select the Mirobot to connect to:
+    >>>   1: Mirobot-ad43
+    >>>   2: Mirobot-ea51
+    >>> Select a number:
 
 It currently runs on both Python 2 and Python 3. Currently all commands are synchronous.
 

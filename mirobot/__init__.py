@@ -7,6 +7,11 @@ import time
 import string
 import random
 import sys
+import json
+try:
+  import urllib.request as request
+except ImportError:
+  import urllib2 as request
 
 _sentinel = object()
 
@@ -33,6 +38,51 @@ class Mirobot:
     self.socket.start()
     # get the version once connected
     self.version   = self.__send('version')
+
+  def connectMenu(self, devices):
+    print("Select the Mirobot to connect to:")
+    for i, device in enumerate(devices):
+      print("  %i: %s" % (i+1, device['name']))
+    try:
+      choice = raw_input("Select a number:")
+    except:
+      choice = input("Select a number: ")
+    return choice
+
+  def autoConnect(self, id = None, interactive = False):
+    try:
+      res = request.urlopen("http://local.mirobot.io/devices.json").read()
+    except:
+      raise Exception("Could not connect to discovery server")
+
+    try:
+      devices = json.loads(str(res, 'utf-8'))
+    except TypeError:
+      devices = json.loads(res)
+
+    print(devices)
+    if interactive:
+      choice = self.connectMenu(devices['devices'])
+      print("Connecting to: %s" % devices['devices'][int(choice)-1]['name'])
+      self.connect(devices['devices'][int(choice)-1]['address'])
+    else:
+      if id:
+        filtered = [item for item in devices['devices'] if item['name'] == id]
+        if len(filtered) == 0:
+          raise Exception("No Mirobots found with id: %s" % id)
+        elif len(filtered) == 1:
+          # Connect to the only device we've found
+          self.connect(filtered[0]['address'])
+        else:
+          raise Exception("Multiple Mirobots found with id: %s" % id)
+      else:
+        if len(devices['devices']) == 0:
+          raise Exception("No Mirobots found")
+        elif len(devices['devices']) == 1:
+          # Connect to the only device we've found
+          self.connect(devices['devices'][0]['address'])
+        else:
+          raise Exception("Too many Mirobots found to auto connect without specifying an ID")
 
   def errorNotify(self, on_error):
     self.__on_error = on_error
