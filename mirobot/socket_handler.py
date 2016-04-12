@@ -1,52 +1,58 @@
 import threading
-import socket, select
+import websocket
 import json
-import sys
-import traceback
+import logging
+logging.basicConfig()
 
 class SocketHandler(threading.Thread):
   def __init__(self, host, send_q, recv_q, debug=False, sentinel=None):
     super(SocketHandler, self).__init__()
-    self.daemon = True
+    self.debug = debug
     self.send_q = send_q
     self.recv_q = recv_q
     self._sentinel = sentinel
-    self.stoprequest = threading.Event()
-    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    self.sock.connect((host, 8899))
-    self.sock.setblocking(0)
-    self.debug = debug
+    self.ready = False
+
+    def on_message(ws, message):
+      self.recv_q.put(json.loads(message))
+      print(message)
+
+    def on_error(ws, error):
+      print(error)
+
+    def on_close(ws):
+      # TODO: implement reconnection strategy
+      pass
+
+    def on_open(ws):
+      self.ready = True;
+
+    self.ws = websocket.WebSocketApp('ws://%s:8899/websocket' % host,
+      on_message = on_message,
+      on_error = on_error,
+      on_close = on_close,
+      on_open = on_open)
+
+    # Run the WebSocket handler in its own thread
+    def run_ws():
+      self.ws.run_forever()
+
+    threading.Thread(target=run_ws).start()
+
     if (self.debug):
       print('opened socket to %s:%d' % (host, 8899))
 
   def run(self):
     while True:
       # Pull new messages to send off the queue
-      if self.send_q.qsize() > 0:
+      if self.send_q.qsize() > 0 and self.ready == True:
         msg = self.send_q.get()
         # Check if we're being told to shut down
         if msg is self._sentinel:
-          return self.sock.close()
+          self.ws.close()
+          break
         if self.debug: print("Tx: " + json.dumps(msg))
         msg_to_send = json.dumps(msg) + "\r\n"
         # Send the message
-        if sys.version_info.major == 2:
-          self.sock.sendall(bytes(msg_to_send))
-        else:
-          self.sock.sendall(bytes(msg_to_send, 'utf-8'))
+        self.ws.send(msg_to_send)
         self.send_q.task_done()
-      # Check to see if we have new data from the socket
-      self._recv()
-
-  def _recv(self):
-    read_sockets,_,_ = select.select([self.sock],[],[], 0.05)
-    if len(read_sockets) == 1:
-      # There's data in the buffer so let's process it
-      buff = self.sock.recv(1024).decode('utf-8')
-      for line in buff.splitlines():
-        try:
-          if self.debug: print("Rx: %s" % line)
-          msg = json.loads(line)
-          self.recv_q.put(msg)
-        except:
-          traceback.print_exc()

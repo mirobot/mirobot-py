@@ -6,23 +6,31 @@ from mirobot.socket_handler import SocketHandler
 import time
 import string
 import random
+import sys
 
 _sentinel = object()
 
 class Mirobot:
-  def __init__(self, address, debug = False):
-    self.__send_q = Queue()
-    self.recv_q = Queue()
-    self.socket = SocketHandler(address, self.__send_q, self.recv_q, debug=debug, sentinel = _sentinel)
+  def __init__(self, address = None, debug = False):
+    # Initialisation for the id field
     self.nonce  = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(4))
     self.n      = 0
-    self.socket.start()
+    self.debug = debug
 
     # callbacks
     self.__on_error    = None
     self.__on_collide  = None
     self.__on_follow   = None
 
+    if address:
+      self.connect(address)
+
+  def connect(self, address):
+    # Set up the socket handling
+    self.__send_q = Queue()
+    self.recv_q = Queue()
+    self.socket = SocketHandler(address, self.__send_q, self.recv_q, debug=self.debug, sentinel = _sentinel)
+    self.socket.start()
     # get the version once connected
     self.version   = self.__send('version')
 
@@ -98,6 +106,9 @@ class Mirobot:
       try:
         timeout = max(1, deadline - time.time())
         incoming = self.recv_q.get(block = True, timeout = timeout)
+      except KeyboardInterrupt as e:
+        self.disconnect()
+        raise e
       except: # .get raises "Empty"
         if (accepted):
           raise IOError("Mirobot timed out awaiting completion of %r" % (msg,))
@@ -118,6 +129,8 @@ class Mirobot:
           accepted = True
         elif rx_status == 'complete':
           return incoming.get('msg',None)
+        elif rx_status == 'notify':
+          pass
         else:
           raise IOError("Received message status (%s) unexpected" % (rx_status,))
       finally:
